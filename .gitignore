@@ -1,0 +1,23 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.example
+*.env
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.log
+
+# Local
+*.sqlite3
+outputs/

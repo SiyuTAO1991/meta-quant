@@ -1,0 +1,80 @@
+:root {
+  --mq-bg: #f3f5f8;
+  --mq-panel: #ffffff;
+  --mq-ink: #1f2937;
+  --mq-muted: #6b7280;
+  --mq-accent: #0f766e;
+  --mq-accent-soft: #ccfbf1;
+  --mq-border: #e5e7eb;
+  --mq-danger: #b91c1c;
+  --mq-up: #dc2626;
+  --mq-down: #16a34a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  background: var(--mq-bg);
+  color: var(--mq-ink);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.page-header p {
+  margin: 4px 0 0;
+  color: var(--mq-muted);
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.panel {
+  background: var(--mq-panel);
+  border: 1px solid var(--mq-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.chart-box {
+  width: 100%;
+  height: 420px;
+}
+
+.muted {
+  color: var(--mq-muted);
+}
