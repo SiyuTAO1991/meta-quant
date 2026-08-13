@@ -17,6 +17,13 @@ async def lifespan(_: FastAPI):
     logger.info(f"starting {settings.app_name} v{settings.app_version}")
     ok = ping_db()
     logger.info(f"mysql connected={ok} db={settings.db_name}@{settings.db_host}")
+    try:
+        from app.services.crawl_service import _cleanup_stale_running_logs
+
+        _cleanup_stale_running_logs()
+        logger.info("cleaned stale crawl running logs")
+    except Exception as e:
+        logger.warning(f"cleanup crawl logs skipped: {e}")
     yield
     logger.info("shutdown")
 

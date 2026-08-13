@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import akshare as ak
+import pandas as pd
 from loguru import logger
 
 from app.config import get_settings
@@ -27,7 +28,7 @@ def _safe_float(val):
     if val is None:
         return None
     try:
-        if str(val).strip() in ("", "--", "None", "nan"):
+        if str(val).strip() in ("", "--", "None", "nan", "NaN"):
             return None
         v = float(val)
         return v if v == v else None
@@ -39,7 +40,30 @@ def _to_symbol(ts_code: str) -> str:
     return ts_code.split(".")[0]
 
 
-def _crawl_one(stock_code: str) -> int:
+def _pick(row: pd.Series, *names):
+    """按候选列名取值；优先精确匹配，避免误命中增长率等衍生字段。"""
+    cols = [str(c) for c in row.index]
+
+    def _ok(col: str, name: str) -> bool:
+        if "增长率" in col or "比重" in col:
+            return False
+        return col == name or col.startswith(name)
+
+    for name in names:
+        if name in row.index:
+            val = _safe_float(row[name])
+            if val is not None:
+                return val
+    for name in names:
+        for col in cols:
+            if _ok(col, name):
+                val = _safe_float(row[col])
+                if val is not None:
+                    return val
+    return None
+
+
+def _crawl_one(stock_code: str, start_date: str | None = None, end_date: str | None = None) -> int:
     symbol = _to_symbol(stock_code)
     try:
         df = ak.stock_financial_analysis_indicator(symbol=symbol)
@@ -49,40 +73,71 @@ def _crawl_one(stock_code: str) -> int:
     if df is None or len(df) == 0:
         return 0
 
+    date_col = "日期" if "日期" in df.columns else df.columns[0]
+    df = df.copy()
+    df["_report_date"] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=["_report_date"]).sort_values("_report_date")
+
+    if start_date:
+        start = pd.to_datetime(str(start_date).replace("-", ""), format="%Y%m%d", errors="coerce")
+        if not pd.isna(start):
+            df = df[df["_report_date"] >= start]
+    if end_date:
+        end = pd.to_datetime(str(end_date).replace("-", ""), format="%Y%m%d", errors="coerce")
+        if not pd.isna(end):
+            df = df[df["_report_date"] <= end]
+
+    # 未指定区间时保留最近 40 期，避免只采到早期数据
+    if not start_date and not end_date:
+        df = df.tail(40)
+
     rows = []
-    for _, row in df.head(20).iterrows():
-        report_date = str(row.get("日期") or row.iloc[0])[:10]
+    for _, row in df.iterrows():
+        report_date = row["_report_date"].strftime("%Y-%m-%d")
         rows.append(
             (
                 stock_code,
                 report_date,
-                _safe_float(row.get("营业收入") or row.get("主营业务收入")),
-                _safe_float(row.get("净利润")),
-                _safe_float(row.get("摊薄每股收益") or row.get("每股收益")),
-                _safe_float(row.get("净资产收益率") or row.get("加权净资产收益率")),
-                _safe_float(row.get("总资产报酬率") or row.get("总资产净利率")),
-                _safe_float(row.get("销售毛利率") or row.get("毛利率")),
-                _safe_float(row.get("销售净利率") or row.get("净利率")),
-                _safe_float(row.get("资产负债率")),
-                _safe_float(row.get("流动比率")),
-                _safe_float(row.get("经营活动产生的现金流量净额")),
-                _safe_float(row.get("资产总计") or row.get("总资产")),
-                _safe_float(row.get("股东权益合计") or row.get("净资产")),
+                None,  # 分析指标接口无营业收入，后续可接利润表补齐
+                _pick(
+                    row,
+                    "扣除非经常性损益后的净利润(元)",
+                    "净利润(元)",
+                    "净利润",
+                ),
+                _pick(row, "摊薄每股收益(元)", "加权每股收益(元)", "每股收益_调整后(元)", "摊薄每股收益", "每股收益"),
+                _pick(row, "净资产收益率(%)", "加权净资产收益率(%)", "净资产收益率", "加权净资产收益率"),
+                _pick(row, "总资产净利润率(%)", "总资产利润率(%)", "资产报酬率(%)", "总资产净利率"),
+                _pick(row, "销售毛利率(%)", "销售毛利率", "毛利率"),
+                _pick(row, "销售净利率(%)", "销售净利率", "净利率"),
+                _pick(row, "资产负债率(%)", "资产负债率"),
+                _pick(row, "流动比率"),
+                _pick(row, "每股经营性现金流(元)"),
+                _pick(row, "总资产(元)", "总资产"),
+                None,
                 "akshare",
             )
         )
     return execute_many(INSERT_SQL, rows)
 
 
-def run_financial_crawl(stock_codes: list[str] | None = None) -> dict:
+def run_financial_crawl(
+    stock_codes: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
     settings = get_settings()
     codes = stock_codes or settings.default_stocks
     total = 0
     failed = []
     for code in codes:
         try:
-            total += _crawl_one(code)
+            total += _crawl_one(code, start_date=start_date, end_date=end_date)
         except Exception as e:
             logger.error(f"financial crawl {code}: {e}")
             failed.append(code)
-    return {"rows": total, "message": f"rows={total}, failed={len(failed)}", "failed": failed}
+    return {
+        "rows": total,
+        "message": f"range={start_date or '-'}~{end_date or '-'}, rows={total}, failed={len(failed)}",
+        "failed": failed,
+    }

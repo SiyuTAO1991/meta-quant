@@ -55,7 +55,7 @@ def _fetch_simple(fn, value_keys, col_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def run_macro_crawl() -> dict:
+def run_macro_crawl(start_date: str | None = None, end_date: str | None = None) -> dict:
     frames = [
         _fetch_simple(ak.macro_china_cpi, ["全国-同比增长", "同比增长", "同比"], "cpi_yoy"),
         _fetch_simple(ak.macro_china_ppi, ["当月同比增长", "同比增长", "同比"], "ppi_yoy"),
@@ -127,4 +127,7 @@ def run_macro_crawl() -> dict:
     except Exception as e:
         logger.warning(f"bond rate crawl failed: {e}")
 
-    return {"rows": n + rate_rows, "message": f"macro={n}, rate={rate_rows}"}
+    return {
+        "rows": n + rate_rows,
+        "message": f"range={start_date or '-'}~{end_date or '-'}, macro={n}, rate={rate_rows}",
+    }

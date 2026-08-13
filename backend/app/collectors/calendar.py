@@ -38,9 +38,36 @@ def _to_str(val):
     return s or None
 
 
-def run_calendar_crawl() -> dict:
+def _to_importance(val, default: int = 0) -> int:
+    """重要性：0=未知 1=低 2=中 3=高；NaN/空值回退默认值。"""
+    if val is None:
+        return default
+    try:
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        if pd.isna(val):
+            return default
+    except Exception:
+        pass
+    try:
+        num = int(float(val))
+    except (TypeError, ValueError):
+        return default
+    if num < 0:
+        return 0
+    if num > 3:
+        return 3
+    return num
+
+
+def run_calendar_crawl(start_date: str | None = None, end_date: str | None = None) -> dict:
     today = pd.Timestamp.now().normalize()
-    dates = pd.date_range(today - pd.Timedelta(days=3), today + pd.Timedelta(days=14))
+    if start_date and end_date:
+        start = pd.Timestamp(str(start_date).replace("-", ""))
+        end = pd.Timestamp(str(end_date).replace("-", ""))
+        dates = pd.date_range(start, end)
+    else:
+        dates = pd.date_range(today - pd.Timedelta(days=3), today + pd.Timedelta(days=14))
     frames = []
     for d in dates:
         try:
@@ -81,39 +108,51 @@ def run_calendar_crawl() -> dict:
         df = df[df[col_map["country"]].isin(COUNTRIES)]
 
     saved = 0
+    skipped = 0
     for _, row in df.iterrows():
         event_date = row[col_map["date"]]
         if pd.isna(event_date):
+            skipped += 1
             continue
         event_date_str = event_date.strftime("%Y-%m-%d") if hasattr(event_date, "strftime") else str(event_date)[:10]
         title = str(row[col_map["event"]]).strip()
-        if not title:
+        if not title or title.lower() in ("nan", "none"):
+            skipped += 1
             continue
         country = str(row.get(col_map.get("country", ""), "") or "").strip() or "CN"
-        importance = int(row.get(col_map.get("importance", ""), 1) or 1)
-        execute_update(
-            """
-            INSERT INTO trade_calendar_event
-            (event_date, event_time, title, country, category, importance,
-             forecast_value, actual_value, previous_value, source)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'baidu')
-            ON DUPLICATE KEY UPDATE
-            actual_value=COALESCE(VALUES(actual_value), actual_value),
-            forecast_value=COALESCE(VALUES(forecast_value), forecast_value),
-            previous_value=COALESCE(VALUES(previous_value), previous_value),
-            importance=VALUES(importance)
-            """,
-            (
-                event_date_str,
-                _to_str(row.get(col_map.get("time", ""), None)),
-                title,
-                country,
-                _classify(title),
-                importance,
-                _to_str(row.get(col_map.get("forecast", ""), None)),
-                _to_str(row.get(col_map.get("actual", ""), None)),
-                _to_str(row.get(col_map.get("previous", ""), None)),
-            ),
-        )
-        saved += 1
-    return {"rows": saved, "message": f"saved={saved}"}
+        if country.lower() in ("nan", "none"):
+            country = "CN"
+        importance = _to_importance(row.get(col_map.get("importance", ""), None), default=0)
+        try:
+            execute_update(
+                """
+                INSERT INTO trade_calendar_event
+                (event_date, event_time, title, country, category, importance,
+                 forecast_value, actual_value, previous_value, source)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'baidu')
+                ON DUPLICATE KEY UPDATE
+                actual_value=COALESCE(VALUES(actual_value), actual_value),
+                forecast_value=COALESCE(VALUES(forecast_value), forecast_value),
+                previous_value=COALESCE(VALUES(previous_value), previous_value),
+                importance=VALUES(importance)
+                """,
+                (
+                    event_date_str,
+                    _to_str(row.get(col_map.get("time", ""), None)),
+                    title,
+                    country,
+                    _classify(title),
+                    importance,
+                    _to_str(row.get(col_map.get("forecast", ""), None)),
+                    _to_str(row.get(col_map.get("actual", ""), None)),
+                    _to_str(row.get(col_map.get("previous", ""), None)),
+                ),
+            )
+            saved += 1
+        except Exception as e:
+            skipped += 1
+            logger.warning(f"calendar row skip: {title} err={e}")
+    return {
+        "rows": saved,
+        "message": f"range={start_date or '-'}~{end_date or '-'}, saved={saved}, skipped={skipped}",
+    }

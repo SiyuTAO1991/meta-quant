@@ -59,19 +59,27 @@ def _fetch_daily(stock_code: str, start_date: str, end_date: str) -> pd.DataFram
     return df
 
 
-def run_daily_crawl(stock_codes: list[str] | None = None) -> dict:
+def run_daily_crawl(
+    stock_codes: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
     settings = get_settings()
     codes = stock_codes or settings.default_stocks
     existing = _latest_dates()
-    end_date = date.today().strftime("%Y%m%d")
+    end = (end_date or date.today().strftime("%Y%m%d")).replace("-", "")
     total_rows = 0
     success = 0
     failed = []
 
     for code in codes:
-        start = existing.get(code, "20250101")
+        # 显式传入起始日时按区间采集；否则从库内最新日增量
+        if start_date:
+            start = start_date.replace("-", "")
+        else:
+            start = existing.get(code, "20250101")
         try:
-            df = _fetch_daily(code, start, end_date)
+            df = _fetch_daily(code, start, end)
             if df is None or len(df) == 0:
                 success += 1
                 continue
@@ -100,6 +108,9 @@ def run_daily_crawl(stock_codes: list[str] | None = None) -> dict:
 
     return {
         "rows": total_rows,
-        "message": f"success={success}, failed={len(failed)}, rows={total_rows}",
+        "message": (
+            f"range={start_date or 'auto'}~{end}, "
+            f"success={success}, failed={len(failed)}, rows={total_rows}"
+        ),
         "failed": failed,
     }

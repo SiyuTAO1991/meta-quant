@@ -115,10 +115,14 @@ class CalendarListRequest(BaseModel):
     start_date: str
     end_date: str
     level: str = ""
+    page: int = 1
+    size: int = 20
 
 
 class CalendarTodayRequest(BaseModel):
     level: str = ""
+    page: int = 1
+    size: int = 20
 
 
 # ---------- 催化剂 ----------
@@ -138,6 +142,8 @@ class CatalystTodayRequest(BaseModel):
 class CrawlTriggerRequest(BaseModel):
     task_id: str
     ts_codes: str = ""
+    start_date: str = ""
+    end_date: str = ""
 
 
 class CrawlLogRequest(BaseModel):

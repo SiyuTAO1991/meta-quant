@@ -16,23 +16,48 @@ def _importance_filter(level: str) -> tuple[str, list]:
     return " AND importance >= %s", [imp]
 
 
-def query_calendar(start_date: str, end_date: str, level: str = "") -> list[dict]:
+def query_calendar(
+    start_date: str,
+    end_date: str,
+    level: str = "",
+    page: int = 1,
+    size: int = 20,
+) -> dict:
     start = normalize_date(start_date, True)
     end = normalize_date(end_date, True)
     extra, params = _importance_filter(level)
-    sql = f"""
+    where_sql = f"event_date BETWEEN %s AND %s{extra}"
+    query_params = [start, end, *params]
+
+    count_rows = execute_query(
+        f"SELECT COUNT(*) AS cnt FROM trade_calendar_event WHERE {where_sql}",
+        query_params,
+    )
+    total = int(count_rows[0]["cnt"]) if count_rows else 0
+    page = max(int(page or 1), 1)
+    size = max(min(int(size or 20), 200), 1)
+    offset = (page - 1) * size
+
+    rows = execute_query(
+        f"""
         SELECT * FROM trade_calendar_event
-        WHERE event_date BETWEEN %s AND %s
-        {extra}
-        ORDER BY event_date ASC, importance DESC
-    """
-    rows = execute_query(sql, (start, end, *params))
-    return [serialize_row(r) for r in rows]
+        WHERE {where_sql}
+        ORDER BY event_date ASC, importance DESC, id ASC
+        LIMIT %s OFFSET %s
+        """,
+        (*query_params, size, offset),
+    )
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "items": [serialize_row(r) for r in rows],
+    }
 
 
-def query_calendar_today(level: str = "") -> list[dict]:
+def query_calendar_today(level: str = "", page: int = 1, size: int = 20) -> dict:
     today = date.today().isoformat()
-    return query_calendar(today, today, level)
+    return query_calendar(today, today, level, page=page, size=size)
 
 
 def query_catalyst_events(

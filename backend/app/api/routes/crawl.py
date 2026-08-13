@@ -20,7 +20,12 @@ def crawl_task_list():
 @router.post("/crawl/task/trigger", response_model=ApiResponse)
 def crawl_task_trigger(body: CrawlTriggerRequest):
     try:
-        data = crawl_service.trigger_task(body.task_id, body.ts_codes)
+        data = crawl_service.trigger_task(
+            body.task_id,
+            ts_codes=body.ts_codes,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
         return ApiResponse(data=data, message=data.get("message", "ok"))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

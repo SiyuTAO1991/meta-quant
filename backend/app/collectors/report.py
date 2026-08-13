@@ -11,7 +11,11 @@ from app.config import get_settings
 from app.database import execute_update
 
 
-def run_report_crawl(stock_codes: list[str] | None = None) -> dict:
+def run_report_crawl(
+    stock_codes: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
     settings = get_settings()
     codes = stock_codes or settings.default_stocks
     saved = 0
@@ -45,4 +49,7 @@ def run_report_crawl(stock_codes: list[str] | None = None) -> dict:
             (code, f"一致预期({analyst_count}家)", today, eps_current, eps_next),
         )
         saved += 1
-    return {"rows": saved, "message": f"saved={saved}"}
+    return {
+        "rows": saved,
+        "message": f"range={start_date or '-'}~{end_date or '-'}, saved={saved}",
+    }

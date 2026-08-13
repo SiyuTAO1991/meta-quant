@@ -27,7 +27,8 @@
         <div class="card-title">{{ item.title }}</div>
         <div class="card-meta">
           <span>{{ item.country || item.stock_code || '-' }}</span>
-          <el-rate :model-value="item.importance || 0" disabled :max="3" />
+          <span v-if="!item.importance" class="muted">未知</span>
+          <el-rate v-else :model-value="item.importance" disabled :max="3" />
         </div>
       </div>
       <el-empty v-if="!items.length && !loading" description="暂无催化剂事件" />

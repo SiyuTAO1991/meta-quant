@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS trade_calendar_event (
     country VARCHAR(10) NOT NULL DEFAULT 'CN' COMMENT 'CN/US/EU/JP',
     category VARCHAR(30) NOT NULL COMMENT 'rate/inflation/employment/gdp/pmi/trade/policy/other',
     title VARCHAR(200) NOT NULL,
-    importance TINYINT DEFAULT 2 COMMENT '1=低 2=中 3=高',
+    importance TINYINT DEFAULT 0 COMMENT '0=未知 1=低 2=中 3=高',
     previous_value VARCHAR(50) COMMENT '前值',
     forecast_value VARCHAR(50) COMMENT '预测值',
     actual_value VARCHAR(50) COMMENT '实际值',

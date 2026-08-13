@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>财务核心指标</h2>
-        <p>ROE / 营收 / 净利润 / 毛利率等季度财务数据</p>
+        <p>ROE / 营收 / 净利润 / 毛利率等季度财务数据（金额单位：万元）</p>
       </div>
       <div class="toolbar">
         <el-input v-model="tsCode" style="width: 160px" placeholder="股票代码" />
@@ -22,8 +22,12 @@
     <div class="panel">
       <el-table :data="rows" stripe height="360">
         <el-table-column prop="report_date" label="报告期" width="120" />
-        <el-table-column prop="revenue" label="营收" />
-        <el-table-column prop="net_profit" label="净利润" />
+        <el-table-column label="营收(万)" min-width="120">
+          <template #default="{ row }">{{ formatWan(row.revenue) }}</template>
+        </el-table-column>
+        <el-table-column label="净利润(万)" min-width="120">
+          <template #default="{ row }">{{ formatWan(row.net_profit) }}</template>
+        </el-table-column>
         <el-table-column prop="eps" label="EPS" />
         <el-table-column prop="roe" label="ROE(%)" />
         <el-table-column prop="gross_margin" label="毛利率(%)" />
@@ -46,11 +50,23 @@ import { api } from '@/api'
 use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
 const tsCode = ref('600519.SH')
-const startYear = ref(2020)
+const startYear = ref(1998)
 const endYear = ref(2026)
 const loading = ref(false)
 const rows = ref([])
 const option = ref(null)
+
+function toWan(value) {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  if (Number.isNaN(n)) return null
+  return Math.round((n / 10000) * 100) / 100
+}
+
+function formatWan(value) {
+  const n = toWan(value)
+  return n === null ? '-' : n.toFixed(2)
+}
 
 async function loadData() {
   loading.value = true
@@ -69,16 +85,21 @@ async function loadData() {
     }
     option.value = {
       tooltip: { trigger: 'axis' },
-      legend: { data: ['营收', '净利润', 'ROE'] },
-      grid: { left: 50, right: 40, top: 40, bottom: 40 },
+      legend: { data: ['营收(万)', '净利润(万)', 'ROE'] },
+      grid: { left: 16, right: 56, top: 48, bottom: 32, containLabel: true },
       xAxis: { type: 'category', data: sorted.map((i) => i.report_date) },
       yAxis: [
-        { type: 'value', name: '金额' },
+        {
+          type: 'value',
+          name: '金额(万)',
+          axisLabel: { show: false },
+          splitLine: { show: true },
+        },
         { type: 'value', name: 'ROE(%)' },
       ],
       series: [
-        { name: '营收', type: 'bar', data: sorted.map((i) => i.revenue) },
-        { name: '净利润', type: 'bar', data: sorted.map((i) => i.net_profit) },
+        { name: '营收(万)', type: 'bar', data: sorted.map((i) => toWan(i.revenue)) },
+        { name: '净利润(万)', type: 'bar', data: sorted.map((i) => toWan(i.net_profit)) },
         { name: 'ROE', type: 'line', yAxisIndex: 1, data: sorted.map((i) => i.roe) },
       ],
     }
