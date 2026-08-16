@@ -24,7 +24,7 @@
     </div>
 
     <div class="panel">
-      <el-table :data="items" stripe v-loading="loading">
+      <el-table :data="items" stripe v-loading="loading" max-height="640">
         <el-table-column prop="event_date" label="日期" width="120" />
         <el-table-column prop="event_time" label="时间" width="90" />
         <el-table-column prop="country" label="国家" width="90" />
@@ -62,7 +62,7 @@ import dayjs from 'dayjs'
 import { api } from '@/api'
 
 const range = ref([dayjs().format('YYYYMMDD'), dayjs().add(14, 'day').format('YYYYMMDD')])
-const level = ref('medium')
+const level = ref('high')
 const loading = ref(false)
 const items = ref([])
 const total = ref(0)
@@ -73,23 +73,20 @@ const mode = ref('range') // range | today
 async function loadData() {
   loading.value = true
   try {
-    let data
-    if (mode.value === 'today') {
-      data = await api.calendarToday({
-        level: level.value || '',
-        page: page.value,
-        size: size.value,
-      })
-    } else {
-      const [start, end] = range.value || []
-      data = await api.calendarList({
-        start_date: start,
-        end_date: end,
-        level: level.value || '',
-        page: page.value,
-        size: size.value,
-      })
-    }
+    const data =
+      mode.value === 'today'
+        ? await api.calendarToday({
+            level: level.value || '',
+            page: page.value,
+            size: size.value,
+          })
+        : await api.calendarList({
+            start_date: (range.value || [])[0],
+            end_date: (range.value || [])[1],
+            level: level.value || '',
+            page: page.value,
+            size: size.value,
+          })
     items.value = data?.items || []
     total.value = data?.total || 0
   } finally {
@@ -106,6 +103,8 @@ function search() {
 function loadToday() {
   mode.value = 'today'
   page.value = 1
+  const today = dayjs().format('YYYYMMDD')
+  range.value = [today, today]
   loadData()
 }
 

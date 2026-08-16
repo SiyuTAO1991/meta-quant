@@ -27,7 +27,7 @@ def query_calendar(
     end = normalize_date(end_date, True)
     extra, params = _importance_filter(level)
     where_sql = f"event_date BETWEEN %s AND %s{extra}"
-    query_params = [start, end, *params]
+    query_params = (start, end, *params)
 
     count_rows = execute_query(
         f"SELECT COUNT(*) AS cnt FROM trade_calendar_event WHERE {where_sql}",
@@ -35,7 +35,7 @@ def query_calendar(
     )
     total = int(count_rows[0]["cnt"]) if count_rows else 0
     page = max(int(page or 1), 1)
-    size = max(min(int(size or 20), 200), 1)
+    size = max(min(int(size or 20), 100), 1)
     offset = (page - 1) * size
 
     rows = execute_query(
