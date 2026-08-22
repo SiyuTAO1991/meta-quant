@@ -55,6 +55,11 @@ export const api = {
   crawlLog: (body) => http.post('/quant/crawl/task/log', body),
   crawlRetry: (body) => http.post('/quant/crawl/task/retry', body),
 
+  strategyList: (body) => http.post('/quant/strategy/list', body || { page: 1, page_size: 50 }),
+  strategyDetail: (body) => http.post('/quant/strategy/detail', body),
+  backtestRun: (body) => http.post('/quant/backtest/run', body, { timeout: 180000 }),
+  backtestReport: (body) => http.post('/quant/backtest/report', body),
+
   health: () => http.get('/health'),
 }
 

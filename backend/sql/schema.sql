@@ -141,3 +141,65 @@ CREATE TABLE IF NOT EXISTS trade_crawl_task_log (
     KEY idx_crawl_task_id (task_id),
     KEY idx_crawl_started (started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集任务执行日志';
+
+CREATE TABLE IF NOT EXISTS trade_strategy_info (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    strategy_name VARCHAR(100) NOT NULL COMMENT '策略展示名称',
+    strategy_category VARCHAR(50) NOT NULL COMMENT '策略分类',
+    strategy_code VARCHAR(64) NOT NULL COMMENT '全局唯一标识，对应内存注册表 Key',
+    description TEXT COMMENT '策略业务描述',
+    status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1-启用 0-禁用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_strategy_code (strategy_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略信息表';
+
+CREATE TABLE IF NOT EXISTS trade_backtest_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '回测ID，接口 backtest_id',
+    task_id VARCHAR(64) NOT NULL COMMENT '任务UUID',
+    ts_code VARCHAR(500) NOT NULL COMMENT '股票代码，多个逗号分隔',
+    strategy_id BIGINT NOT NULL COMMENT '关联策略模板 id',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    initial_capital DECIMAL(20,2) NOT NULL DEFAULT 100000.00,
+    commission DECIMAL(10,6) NOT NULL DEFAULT 0.000300,
+    enable_stamp_tax TINYINT(1) NOT NULL DEFAULT 1,
+    strategy_params JSON COMMENT '策略参数',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT 'pending/running/success/failed',
+    error_msg TEXT,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finish_time DATETIME NULL,
+    UNIQUE KEY uk_backtest_task_id (task_id),
+    KEY idx_backtest_strategy (strategy_id),
+    KEY idx_backtest_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='回测任务表';
+
+CREATE TABLE IF NOT EXISTS trade_backtest_result (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id VARCHAR(64) NOT NULL COMMENT '关联回测任务 task_id',
+    total_return DECIMAL(16,6) COMMENT '总收益率',
+    annual_return DECIMAL(16,6) COMMENT '年化收益率',
+    max_drawdown DECIMAL(16,6) COMMENT '最大回撤',
+    calmar_ratio DECIMAL(16,6) COMMENT '卡玛比率',
+    sharpe_ratio DECIMAL(16,6) COMMENT '夏普比率',
+    win_rate DECIMAL(16,6) COMMENT '胜率',
+    profit_loss_ratio DECIMAL(16,6) COMMENT '盈亏比',
+    trade_count INT DEFAULT 0 COMMENT '总交易次数',
+    final_value DECIMAL(20,2) COMMENT '期末资产',
+    report_data JSON COMMENT '净值/回撤曲线等完整报告数据',
+    UNIQUE KEY uk_backtest_result_task (task_id),
+    KEY idx_backtest_result_task (task_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='回测结果表';
+
+CREATE TABLE IF NOT EXISTS trade_backtest_trade (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id VARCHAR(64) NOT NULL COMMENT '任务 id',
+    stock_code VARCHAR(20) COMMENT '股票代码',
+    trade_date DATE NOT NULL COMMENT '成交日期',
+    direction VARCHAR(10) NOT NULL COMMENT 'buy/sell',
+    price DECIMAL(16,4) NOT NULL COMMENT '成交价',
+    volume INT NOT NULL COMMENT '股数',
+    pnl DECIMAL(20,4) COMMENT '本次盈亏',
+    KEY idx_backtest_trade_task (task_id),
+    KEY idx_backtest_trade_date (trade_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='回测交易明细表';

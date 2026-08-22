@@ -24,6 +24,13 @@ async def lifespan(_: FastAPI):
         logger.info("cleaned stale crawl running logs")
     except Exception as e:
         logger.warning(f"cleanup crawl logs skipped: {e}")
+    try:
+        from app.services.strategy_service import sync_builtin_strategies
+
+        sync_builtin_strategies()
+        logger.info("synced builtin strategies")
+    except Exception as e:
+        logger.warning(f"sync strategies skipped: {e}")
     yield
     logger.info("shutdown")
 

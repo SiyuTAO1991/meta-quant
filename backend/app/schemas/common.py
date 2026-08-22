@@ -157,6 +157,32 @@ class CrawlRetryRequest(BaseModel):
     log_id: int
 
 
+# ---------- 策略 / 回测 ----------
+class StrategyListRequest(BaseModel):
+    page: int = 1
+    page_size: int = 50
+
+
+class StrategyDetailRequest(BaseModel):
+    strategy_key: str = Field(..., description="策略唯一标识，如 double_ma")
+
+
+class BacktestRunRequest(BaseModel):
+    stock_list: list[str] = Field(..., min_length=1)
+    start_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    end_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    strategy_key: str
+    strategy_params: dict[str, Any] = Field(default_factory=dict)
+    cash: float = 100000
+    commission: float = 0.0003
+    enable_stamp_tax: bool = True
+    plot_curve: bool = True
+
+
+class BacktestReportRequest(BaseModel):
+    backtest_id: int
+
+
 def serialize_row(row: dict) -> dict:
     """将 Decimal/datetime 转为可 JSON 序列化类型。"""
     out = {}
