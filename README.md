@@ -6,7 +6,6 @@
 - **后端**：FastAPI + Pandas + Backtrader + Tushare / AkShare
 - **存储**：MySQL
 
-采集逻辑参考 `quant_trading_test/CASE-数据采集`，回测逻辑参考 `CASE-Backtrader回测`。
 
 ## 功能概览
 
