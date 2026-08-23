@@ -27,9 +27,12 @@ def _ensure_strategy_table():
 
 
 def sync_builtin_strategies() -> None:
-    """将内存注册表中的内置策略同步到 MySQL。"""
+    """将内存注册表中的内置策略同步到 MySQL，并停用已移除的内置策略。"""
     _ensure_strategy_table()
+    registered_codes = set()
     for meta in list_registered_strategies():
+        code = meta["strategy_code"]
+        registered_codes.add(code)
         execute_update(
             """
             INSERT INTO trade_strategy_info
@@ -44,10 +47,25 @@ def sync_builtin_strategies() -> None:
             (
                 meta["strategy_name"],
                 meta["strategy_category"],
-                meta["strategy_code"],
+                code,
                 meta["description"],
             ),
         )
+
+    rows = execute_query(
+        """
+        SELECT strategy_code
+        FROM trade_strategy_info
+        WHERE status = 1
+        """
+    )
+    for row in rows:
+        code = row["strategy_code"]
+        if code not in registered_codes:
+            execute_update(
+                "UPDATE trade_strategy_info SET status = 0 WHERE strategy_code = %s",
+                (code,),
+            )
 
 
 def list_strategies(page: int = 1, page_size: int = 50) -> dict:

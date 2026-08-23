@@ -11,7 +11,7 @@
 
 | 模块 | 说明 |
 |------|------|
-| 策略回测 | Backtrader 引擎，内置 6 种策略，支持参数配置、净值/回撤曲线、交易明细 |
+| 策略回测 | Backtrader 引擎，内置 7 种策略（含 TA-Lib K 线形态扫描），支持参数配置、净值/回撤曲线、交易明细 |
 | 采集任务 | Tushare / AkShare 日线、财务、宏观、新闻、研报、日历等数据入库 |
 | 数据 API | 行情、财务、宏观、新闻、研报、日历等查询接口（后端保留，前端暂未开放页面） |
 
@@ -90,6 +90,9 @@ npm run dev
 | `bollinger` | 布林带策略 | 波动率 |
 | `bias` | 乖离率策略 | 均值回归 |
 | `momentum` | 动量策略 | 动量因子 |
+| `cdl_bullish_scan` | 看涨形态扫描策略 | K线形态 |
+
+K 线形态策略基于 [TA-Lib](https://github.com/TA-Lib/ta-lib-python) 的 `CDL_*` 函数（需 `pip install TA-Lib`）。
 
 策略通过装饰器注册于 `backend/app/strategies/`，启动时自动同步到 `trade_strategy_info` 表。
 
