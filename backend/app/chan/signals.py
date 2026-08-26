@@ -14,13 +14,7 @@ SIGNAL_NAMES = {
     "second_buy": "二买",
     "third_buy": "三买",
     "third_sell": "三卖",
-    "bi_buy": "向下笔买",
-    "bi_sell": "向上笔卖",
 }
-
-# 笔端翻转策略信号码（避开 1/2/3/-3 三类买卖点编码）
-BI_BUY_SIGNAL = 4   # 向下笔终点 → 买
-BI_SELL_SIGNAL = -4  # 向上笔终点 → 卖
 
 
 def analyze_dataframe(
@@ -118,56 +112,8 @@ def build_signal_stats(signal_df: pd.DataFrame) -> dict[str, int]:
         "second_buy": int((signal_df["chan_signal"] == 2).sum()),
         "third_buy": int((signal_df["chan_signal"] == 3).sum()),
         "third_sell": int((signal_df["chan_signal"] == -3).sum()),
-        "bi_buy": int((signal_df["chan_signal"] == BI_BUY_SIGNAL).sum()),
-        "bi_sell": int((signal_df["chan_signal"] == BI_SELL_SIGNAL).sum()),
         "total": int((signal_df["chan_signal"] != 0).sum()),
     }
-
-
-def apply_bi_flip_signals(analyzer: ChanAnalyzer, signal_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    用笔端点覆盖 chan_signal（不依赖中枢买卖点）:
-      向下笔终点 → 4（买）
-      向上笔终点 → -4（卖）
-    """
-    out = signal_df.copy()
-    out["chan_signal"] = 0
-    for bi in analyzer.bi_list:
-        sig_date = bi.get("end_raw_date", bi["end_date"])
-        loc = ChanAnalyzer._loc_signal_date(out, sig_date)
-        if loc is None:
-            continue
-        if bi["direction"] == "down":
-            out.loc[loc, "chan_signal"] = BI_BUY_SIGNAL
-        elif bi["direction"] == "up":
-            out.loc[loc, "chan_signal"] = BI_SELL_SIGNAL
-    return out
-
-
-def extract_bi_flip_points(analyzer: ChanAnalyzer) -> list[dict[str, Any]]:
-    """从笔列表提取笔端买卖点（供回测报告）。"""
-    points: list[dict[str, Any]] = []
-    for bi in analyzer.bi_list:
-        if bi["direction"] == "down":
-            sig_type = "bi_buy"
-            price = float(bi["end_price"])
-        elif bi["direction"] == "up":
-            sig_type = "bi_sell"
-            price = float(bi["end_price"])
-        else:
-            continue
-        points.append(
-            {
-                "date": pd.Timestamp(bi.get("end_raw_date", bi["end_date"])).strftime("%Y-%m-%d"),
-                "type": sig_type,
-                "type_name": SIGNAL_NAMES[sig_type],
-                "price": price,
-                "zhongshu_zg": None,
-                "zhongshu_zd": None,
-            }
-        )
-    points.sort(key=lambda x: x["date"])
-    return points
 
 
 def build_signal_dataframe(
@@ -209,9 +155,7 @@ def enrich_dataframes_for_chan(
     enriched: dict[str, pd.DataFrame] = {}
     with_weekly = strategy_key == "chan_multi_period"
     for code, df in dataframes.items():
-        analyzer, signal_df, _ = analyze_dataframe(df, with_weekly_trend=with_weekly)
-        if strategy_key == "chan_bi_flip":
-            signal_df = apply_bi_flip_signals(analyzer, signal_df)
+        signal_df, _ = build_signal_dataframe(df, symbol=code, with_weekly_trend=with_weekly)
         enriched[code] = signal_df
     return enriched
 
@@ -223,8 +167,6 @@ def extract_signal_points(signal_df: pd.DataFrame) -> list[dict[str, Any]]:
         2: "second_buy",
         3: "third_buy",
         -3: "third_sell",
-        BI_BUY_SIGNAL: "bi_buy",
-        BI_SELL_SIGNAL: "bi_sell",
     }
     points: list[dict[str, Any]] = []
     for dt, row in signal_df.iterrows():

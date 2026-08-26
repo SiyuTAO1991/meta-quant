@@ -4,7 +4,6 @@ from app.strategies import (  # noqa: F401
     bias,
     bollinger,
     cdl_bullish_scan,
-    chan_bi_flip,
     chan_multi_period,
     chan_third_buy,
     double_ma,
