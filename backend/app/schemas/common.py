@@ -183,6 +183,13 @@ class BacktestReportRequest(BaseModel):
     backtest_id: int
 
 
+class ChanAnalyzeRequest(BaseModel):
+    ts_code: str = Field(..., description="如 600519.SH")
+    start_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    end_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
 def serialize_row(row: dict) -> dict:
     """将 Decimal/datetime 转为可 JSON 序列化类型。"""
     out = {}

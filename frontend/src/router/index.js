@@ -9,6 +9,12 @@ const routes = [
     meta: { title: '策略回测', icon: 'Histogram' },
   },
   {
+    path: '/chan-backtest',
+    name: 'chan-backtest',
+    component: () => import('@/views/ChanBacktestView.vue'),
+    meta: { title: '缠论回测', icon: 'TrendCharts' },
+  },
+  {
     path: '/crawl',
     name: 'crawl',
     component: () => import('@/views/CrawlView.vue'),

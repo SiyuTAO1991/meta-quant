@@ -7,7 +7,9 @@ from typing import Any, Optional
 
 from loguru import logger
 
-from app.backtest.data_loader import bars_to_dataframe, calc_metrics, setup_cerebro
+from app.backtest.data_loader import ChanPandasData, bars_to_dataframe, calc_metrics, setup_cerebro
+from app.chan.constants import CHAN_STRATEGY_KEYS
+from app.chan.signals import enrich_dataframes_for_chan
 
 
 @dataclass
@@ -45,6 +47,7 @@ def run_backtest(
     enable_stamp_tax: bool = True,
     plot_curve: bool = True,
     position_pct: int = 95,
+    strategy_key: str = "",
 ) -> BacktestRunResult:
     """同步执行 Backtrader 回测。"""
     strategy_params = strategy_params or {}
@@ -60,6 +63,12 @@ def run_backtest(
     if not dataframes:
         raise ValueError("所选标的在回测区间内无可用日线数据，请先完成数据采集")
 
+    if strategy_key in CHAN_STRATEGY_KEYS:
+        dataframes = enrich_dataframes_for_chan(dataframes, strategy_key)
+        feed_cls = ChanPandasData
+    else:
+        feed_cls = None
+
     cerebro = setup_cerebro(
         strategy_class=strategy_cls,
         dataframes=dataframes,
@@ -68,6 +77,7 @@ def run_backtest(
         enable_stamp_tax=enable_stamp_tax,
         strategy_params=strategy_params,
         position_pct=position_pct,
+        data_class=feed_cls,
     )
 
     initial = float(cerebro.broker.getvalue())

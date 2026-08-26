@@ -13,6 +13,7 @@ from app.backtest.engine import run_backtest
 from app.database import execute_many, execute_query, execute_update
 from app.schemas.common import serialize_row
 from app.services import stock_service, strategy_service
+from app.services.chan_service import CHAN_STRATEGY_KEYS, build_chan_report_extras, calc_chan_min_bars
 from app.strategies.registry import get_strategy_meta
 from app.utils import normalize_date
 
@@ -157,7 +158,8 @@ def run_backtest_task(
         raise ValueError("开始日期不能晚于结束日期")
 
     # 校验股票、检查数据覆盖，不足则自动采集
-    stock_list = stock_service.ensure_daily_data(stock_list, start, end)
+    min_bars = calc_chan_min_bars(start, end) if strategy_key in CHAN_STRATEGY_KEYS else 20
+    stock_list = stock_service.ensure_daily_data(stock_list, start, end, min_bars=min_bars)
 
     task_uuid = uuid.uuid4().hex
     ts_code_text = ",".join([c.strip().upper() for c in stock_list if c and c.strip()])
@@ -200,6 +202,7 @@ def run_backtest_task(
             commission=commission,
             enable_stamp_tax=enable_stamp_tax,
             plot_curve=plot_curve,
+            strategy_key=strategy_key,
         )
 
         report_data = {
@@ -216,6 +219,7 @@ def run_backtest_task(
             "realized_pnl": result.realized_pnl,
             "unrealized_pnl": result.unrealized_pnl,
             "open_positions": result.open_positions,
+            **build_chan_report_extras(stock_bars, strategy_key),
         }
 
         execute_update(
@@ -359,6 +363,16 @@ def get_backtest_report(backtest_id: int) -> dict:
         (task["task_id"],),
     )
     trade_fills = [serialize_row(r) for r in trades]
+    trade_marks = report_data.get("trade_marks") or []
+    mark_lookup = {
+        (m.get("stock_code"), m.get("date"), m.get("type")): m.get("signal_date") or m.get("date")
+        for m in trade_marks
+    }
+    for fill in trade_fills:
+        direction = str(fill.get("direction") or "").lower()
+        side = "BUY" if direction == "buy" else "SELL"
+        key = (fill.get("stock_code"), fill.get("trade_date"), side)
+        fill["signal_date"] = mark_lookup.get(key) or fill.get("trade_date")
 
     stock_list = report_data.get("stock_list") or [
         c for c in str(task.get("ts_code") or "").split(",") if c
@@ -397,4 +411,6 @@ def get_backtest_report(backtest_id: int) -> dict:
         "unrealized_pnl": report_data.get("unrealized_pnl"),
         "open_positions": report_data.get("open_positions") or [],
         "trade_marks": report_data.get("trade_marks") or [],
+        "chan_signals": report_data.get("chan_signals") or [],
+        "chan_signal_stats": report_data.get("chan_signal_stats") or {},
     }

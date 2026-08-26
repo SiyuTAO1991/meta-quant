@@ -59,6 +59,7 @@ export const api = {
   strategyDetail: (body) => http.post('/quant/strategy/detail', body),
   backtestRun: (body) => http.post('/quant/backtest/run', body, { timeout: 180000 }),
   backtestReport: (body) => http.post('/quant/backtest/report', body),
+  chanAnalyze: (body) => http.post('/quant/chan/analyze', body, { timeout: 180000 }),
 
   health: () => http.get('/health'),
 }

@@ -11,11 +11,12 @@
 
 | 模块 | 说明 |
 |------|------|
-| 策略回测 | Backtrader 引擎，内置 7 种策略（含 TA-Lib K 线形态扫描），支持参数配置、净值/回撤曲线、交易明细 |
+| 策略回测 | Backtrader 引擎，内置 9 种策略（含 TA-Lib K 线形态、缠论三买/多周期），支持参数配置、净值/回撤曲线、交易明细 |
+| 缠论回测 | 基于 ChanAnalyzer 识别 K 线包含/笔/中枢/买卖点，并提供缠论专用回测页 |
 | 采集任务 | Tushare / AkShare 日线、财务、宏观、新闻、研报、日历等数据入库 |
 | 数据 API | 行情、财务、宏观、新闻、研报、日历等查询接口（后端保留，前端暂未开放页面） |
 
-前端当前仅展示 **策略回测**、**采集任务** 两个页面。
+前端当前展示 **策略回测**、**缠论回测**、**采集任务** 三个页面。
 
 ## 目录结构
 
@@ -25,7 +26,8 @@ meta-quant/
 │   ├── app/
 │   │   ├── api/routes/      # /quant/* 接口
 │   │   ├── backtest/        # Backtrader 回测引擎
-│   │   ├── strategies/      # 内置策略注册（双均线/RSI/MACD 等）
+│   │   ├── strategies/      # 内置策略注册（双均线/RSI/MACD/缠论等）
+│   │   ├── chan/            # ChanAnalyzer + chanpy_wrapper 缠论分析
 │   │   ├── collectors/      # Tushare/AkShare 采集
 │   │   ├── services/        # 业务逻辑（含 backtest_service、strategy_service）
 │   │   ├── schemas/
@@ -91,8 +93,10 @@ npm run dev
 | `bias` | 乖离率策略 | 均值回归 |
 | `momentum` | 动量策略 | 动量因子 |
 | `cdl_bullish_scan` | 看涨形态扫描策略 | K线形态 |
+| `chan_third_buy` | 缠论三买策略 | 缠论 |
+| `chan_multi_period` | 多周期缠论策略 | 缠论 |
 
-K 线形态策略基于 [TA-Lib](https://github.com/TA-Lib/ta-lib-python) 的 `CDL_*` 函数（需 `pip install TA-Lib`）。
+K 线形态策略基于 [TA-Lib](https://github.com/TA-Lib/ta-lib-python) 的 `CDL_*` 函数（需 `pip install TA-Lib`）。缠论策略基于训练营 `ChanAnalyzer`（`backend/app/chan/chan_analyzer.py`）。
 
 策略通过装饰器注册于 `backend/app/strategies/`，启动时自动同步到 `trade_strategy_info` 表。
 
@@ -106,6 +110,7 @@ K 线形态策略基于 [TA-Lib](https://github.com/TA-Lib/ta-lib-python) 的 `C
 | `POST /quant/strategy/detail` | 获取策略详情与参数模板 |
 | `POST /quant/backtest/run` | 执行回测（同步） |
 | `POST /quant/backtest/report` | 查询回测报告 |
+| `POST /quant/chan/analyze` | 缠论结构分析（包含/笔/中枢/买卖点） |
 
 ### 采集 / 数据
 
