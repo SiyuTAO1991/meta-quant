@@ -333,6 +333,18 @@ def _collect_open_positions(strat: Any) -> list[dict]:
     return open_positions
 
 
+class ChanPandasData(bt.feeds.PandasData):
+    """携带缠论信号列的 Backtrader 数据源。"""
+
+    lines = ("chan_signal", "chan_zg", "chan_zd", "weekly_trend")
+    params = (
+        ("chan_signal", "chan_signal"),
+        ("chan_zg", "chan_zg"),
+        ("chan_zd", "chan_zd"),
+        ("weekly_trend", "weekly_trend"),
+    )
+
+
 def setup_cerebro(
     strategy_class: type,
     dataframes: dict[str, pd.DataFrame],
@@ -341,9 +353,11 @@ def setup_cerebro(
     enable_stamp_tax: bool,
     strategy_params: Optional[dict[str, Any]] = None,
     position_pct: int = 95,
+    data_class: Optional[type] = None,
 ) -> bt.Cerebro:
     """创建并配置 Cerebro 引擎。"""
     strategy_params = strategy_params or {}
+    feed_cls = data_class or bt.feeds.PandasData
     wrapped = wrap_strategy(strategy_class)
 
     cerebro = bt.Cerebro(stdstats=False)
@@ -356,7 +370,7 @@ def setup_cerebro(
     for code, df in dataframes.items():
         if df.empty or len(df) < 5:
             continue
-        cerebro.adddata(bt.feeds.PandasData(dataname=df, name=code))
+        cerebro.adddata(feed_cls(dataname=df, name=code))
         added += 1
 
     if added == 0:
