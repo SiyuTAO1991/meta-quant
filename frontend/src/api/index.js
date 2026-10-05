@@ -61,6 +61,14 @@ export const api = {
   backtestReport: (body) => http.post('/quant/backtest/report', body),
   chanAnalyze: (body) => http.post('/quant/chan/analyze', body, { timeout: 180000 }),
 
+  factorMeta: () => http.post('/quant/factor/meta', {}),
+  factorValidateStocks: (body) => http.post('/quant/factor/validate_stocks', body),
+  factorEvaluate: (body) => http.post('/quant/factor/evaluate', body, { timeout: 600000 }),
+  factorResults: (body) => http.post('/quant/factor/results', body || { page: 1, size: 10 }),
+
+  multiFactorMeta: () => http.post('/quant/multi-factor/meta', {}),
+  multiFactorBacktest: (body) => http.post('/quant/multi-factor/backtest', body, { timeout: 600000 }),
+
   health: () => http.get('/health'),
 }
 

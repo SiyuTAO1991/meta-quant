@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from app.config import get_settings
-from app.database import execute_many
+from app.database import execute_many, execute_query
 
 INSERT_SQL = """
     INSERT INTO trade_stock_financial
@@ -121,13 +121,54 @@ def _crawl_one(stock_code: str, start_date: str | None = None, end_date: str | N
     return execute_many(INSERT_SQL, rows)
 
 
+def _ymd_to_sql_date(value: str | None) -> str | None:
+    """YYYYMMDD / YYYY-MM-DD → YYYY-MM-DD；无效则 None。"""
+    if not value:
+        return None
+    raw = str(value).strip().replace("-", "")
+    if len(raw) != 8 or not raw.isdigit():
+        return None
+    return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+
+
+def _codes_with_data_in_range(start_date: str | None, end_date: str | None) -> set[str]:
+    """区间内至少有 1 条财务记录的股票代码。"""
+    start = _ymd_to_sql_date(start_date)
+    end = _ymd_to_sql_date(end_date)
+    if not start or not end:
+        return set()
+    rows = execute_query(
+        """
+        SELECT DISTINCT stock_code
+        FROM trade_stock_financial
+        WHERE report_date >= %s AND report_date <= %s
+        """,
+        (start, end),
+    )
+    return {r["stock_code"] for r in rows if r.get("stock_code")}
+
+
 def run_financial_crawl(
     stock_codes: list[str] | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
+    *,
+    skip_existing_in_range: bool = False,
 ) -> dict:
     settings = get_settings()
-    codes = stock_codes or settings.default_stocks
+    codes = list(stock_codes or settings.default_stocks)
+    skipped = 0
+    if skip_existing_in_range and start_date and end_date:
+        existing = _codes_with_data_in_range(start_date, end_date)
+        if existing:
+            before = len(codes)
+            codes = [c for c in codes if c not in existing]
+            skipped = before - len(codes)
+            logger.info(
+                f"financial skip existing in range "
+                f"{start_date}~{end_date}: skipped={skipped}, remain={len(codes)}"
+            )
+
     total = 0
     failed = []
     for code in codes:
@@ -138,6 +179,10 @@ def run_financial_crawl(
             failed.append(code)
     return {
         "rows": total,
-        "message": f"range={start_date or '-'}~{end_date or '-'}, rows={total}, failed={len(failed)}",
+        "message": (
+            f"range={start_date or '-'}~{end_date or '-'}, "
+            f"rows={total}, skipped={skipped}, failed={len(failed)}"
+        ),
         "failed": failed,
+        "skipped": skipped,
     }

@@ -203,3 +203,47 @@ CREATE TABLE IF NOT EXISTS trade_backtest_trade (
     KEY idx_backtest_trade_task (task_id),
     KEY idx_backtest_trade_date (trade_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='回测交易明细表';
+
+CREATE TABLE IF NOT EXISTS trade_factor_eval_job (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    universe VARCHAR(20) NOT NULL COMMENT 'all/custom',
+    stock_codes TEXT COMMENT '部分A股代码，逗号分隔',
+    stock_count INT DEFAULT 0 COMMENT '实际参评股票数',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    holding_days INT NOT NULL DEFAULT 20,
+    category VARCHAR(50) DEFAULT '全部',
+    sort_by VARCHAR(50) DEFAULT 'abs_ir',
+    keyword VARCHAR(100) DEFAULT '',
+    factor_count INT DEFAULT 0,
+    data_end DATE NULL COMMENT '当时日线数据截止日',
+    crawl_triggered TINYINT DEFAULT 0,
+    crawl_message VARCHAR(500) DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'success',
+    message VARCHAR(1000) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_factor_eval_job_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='因子评价任务(条件)';
+
+CREATE TABLE IF NOT EXISTS trade_factor_eval_result (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id INT NOT NULL,
+    factor_code VARCHAR(50) NOT NULL,
+    factor_name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) DEFAULT '',
+    ic_mean DECIMAL(16,8) NULL,
+    ir DECIMAL(16,8) NULL,
+    ic_win_rate DECIMAL(10,6) NULL,
+    q1_excess DECIMAL(16,8) NULL,
+    q5_excess DECIMAL(16,8) NULL,
+    q5_q1 DECIMAL(16,8) NULL,
+    q5_turnover DECIMAL(10,6) NULL,
+    monotonicity DECIMAL(10,6) NULL,
+    sample_stocks INT DEFAULT 0,
+    sample_periods INT DEFAULT 0,
+    ok TINYINT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_factor_eval_result_job (job_id),
+    KEY idx_factor_eval_result_code (factor_code),
+    KEY idx_factor_eval_result_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='因子评价结果';

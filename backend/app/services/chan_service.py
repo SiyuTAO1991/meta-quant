@@ -112,7 +112,6 @@ def build_chan_report_extras(stock_bars: dict[str, list[dict]], strategy_key: st
     """为缠论回测报告附加全部买卖点列表。"""
     if strategy_key not in CHAN_STRATEGY_KEYS:
         return {}
-    from app.chan.signals import apply_bi_flip_signals, extract_bi_flip_points
 
     all_signals: list[dict[str, Any]] = []
     stats: dict[str, int] = {}
@@ -120,20 +119,12 @@ def build_chan_report_extras(stock_bars: dict[str, list[dict]], strategy_key: st
         df = bars_to_dataframe(bars)
         if df.empty:
             continue
-        analyzer, signal_df, chan_data = analyze_dataframe(
+        _, signal_df, chan_data = analyze_dataframe(
             df, with_weekly_trend=strategy_key == "chan_multi_period"
         )
-        if strategy_key == "chan_bi_flip":
-            signal_df = apply_bi_flip_signals(analyzer, signal_df)
-            stats = build_signal_stats(signal_df)
-            for sig in extract_bi_flip_points(analyzer):
-                item = dict(sig)
-                item["stock_code"] = code
-                all_signals.append(item)
-        else:
-            stats = build_signal_stats(signal_df)
-            for sig in chan_data.get("signals") or []:
-                item = dict(sig)
-                item["stock_code"] = code
-                all_signals.append(item)
+        stats = build_signal_stats(signal_df)
+        for sig in chan_data.get("signals") or []:
+            item = dict(sig)
+            item["stock_code"] = code
+            all_signals.append(item)
     return {"chan_signals": all_signals, "chan_signal_stats": stats if stock_bars else {}}

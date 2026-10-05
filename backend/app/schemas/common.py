@@ -190,6 +190,51 @@ class ChanAnalyzeRequest(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
 
 
+class FactorValidateRequest(BaseModel):
+    stock_codes: str = Field(..., description="逗号分隔股票代码，如 600519.SH,000001.SZ")
+
+
+class FactorEvaluateRequest(BaseModel):
+    universe: str = Field("all", description="all=全A股 / custom=部分A股")
+    stock_codes: str = Field("", description="部分A股时必填")
+    start_date: str = Field(..., description="评价起始日 YYYY-MM-DD / YYYYMMDD")
+    end_date: str = Field(..., description="评价结束日")
+    holding_days: int = Field(20, description="调仓周期：5/10/20/60")
+    category: str = Field("全部", description="因子分类筛选")
+    sort_by: str = Field("abs_ir", description="排序字段")
+    keyword: str = Field("", description="因子名/代码搜索")
+
+
+class FactorResultListRequest(BaseModel):
+    page: int = Field(1, ge=1)
+    size: int = Field(10, ge=1, le=100, description="每页因子结果行数，默认10")
+
+
+class MultiFactorWeightItem(BaseModel):
+    code: str
+    weight: float = 0.1
+    direction: int = 1
+    enabled: bool = True
+
+
+class MultiFactorBacktestRequest(BaseModel):
+    universe: str = Field("all", description="all=全A股 / custom=部分A股；股票代码为空时强制全A")
+    stock_codes: str = Field("", description="逗号分隔；留空则默认全部A股")
+    start_date: str = Field(..., description="回测起始日 YYYY-MM-DD / YYYYMMDD")
+    end_date: str = Field(..., description="回测结束日")
+    top_n: int = Field(10, ge=1, le=100, description="每期持仓 Top-N")
+    cash: float = Field(1_000_000, ge=1000, description="初始资金")
+    max_stocks: int = Field(800, ge=50, le=3000, description="全A股股票池上限")
+    holding_days: int = Field(
+        0,
+        description="调仓周期：5/10/20/60=交易日；0=月末调仓",
+    )
+    factor_weights: list[MultiFactorWeightItem] = Field(
+        default_factory=list,
+        description="因子权重配置；空则用默认8因子",
+    )
+
+
 def serialize_row(row: dict) -> dict:
     """将 Decimal/datetime 转为可 JSON 序列化类型。"""
     out = {}

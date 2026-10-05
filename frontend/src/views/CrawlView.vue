@@ -79,9 +79,9 @@
             v-model="form.tsCodes"
             type="textarea"
             :rows="3"
-            placeholder="多个代码用逗号分隔，如 600519.SH,000001.SZ；留空则采集全部股票"
+            placeholder="多个代码用逗号分隔，如 600519.SH,000001.SZ；日线留空=按交易日采集全市场 A 股"
           />
-          <div class="form-tip">不填则默认采集全部股票</div>
+          <div class="form-tip">不填则采集 A 股全市场（约五千只，耗时较长）；填写则仅采集指定股票</div>
         </el-form-item>
       </el-form>
       <template #footer>

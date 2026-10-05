@@ -116,18 +116,20 @@ def _finish_log(log_id: int, status: str, message: str, rows_affected: int = 0):
     )
 
 
-def _list_all_stocks() -> list[str]:
-    """全部股票：优先库内已有代码，其次 Tushare 全市场列表，最后回退配置默认值。"""
+def _list_stocks_from_db() -> list[str]:
+    """库内已有日线的股票代码。"""
     try:
         rows = execute_query(
             "SELECT DISTINCT stock_code FROM trade_stock_daily ORDER BY stock_code"
         )
-        codes = [r["stock_code"] for r in rows if r.get("stock_code")]
-        if codes:
-            return codes
+        return [r["stock_code"] for r in rows if r.get("stock_code")]
     except Exception as e:
         logger.warning(f"list stocks from db failed: {e}")
+        return []
 
+
+def _list_stocks_from_tushare() -> list[str]:
+    """Tushare 当前上市 A 股全市场代码。"""
     try:
         from app.collectors.daily import _get_pro
 
@@ -137,14 +139,37 @@ def _list_all_stocks() -> list[str]:
             return [str(c) for c in df["ts_code"].tolist()]
     except Exception as e:
         logger.warning(f"list stocks from tushare failed: {e}")
+    return []
 
+
+def _list_all_stocks(*, prefer_market: bool = False) -> list[str]:
+    """
+    解析“全部股票”列表。
+
+    prefer_market=True: 优先 Tushare 全市场（日线/财务等留空股票代码时）
+    prefer_market=False: 优先库内已有代码（新闻等增量场景）
+    """
+    if prefer_market:
+        codes = _list_stocks_from_tushare()
+        if codes:
+            return codes
+        codes = _list_stocks_from_db()
+        if codes:
+            return codes
+    else:
+        codes = _list_stocks_from_db()
+        if codes:
+            return codes
+        codes = _list_stocks_from_tushare()
+        if codes:
+            return codes
     return get_settings().default_stocks
 
 
-def _resolve_stocks(ts_codes: str) -> list[str]:
+def _resolve_stocks(ts_codes: str, *, prefer_market: bool = False) -> list[str]:
     if ts_codes.strip():
         return [c.strip() for c in ts_codes.split(",") if c.strip()]
-    return _list_all_stocks()
+    return _list_all_stocks(prefer_market=prefer_market)
 
 
 def _normalize_ymd(value: str, fallback: str = "") -> str:
@@ -181,27 +206,9 @@ def trigger_task(
     )
 
     need_stock = bool(task.get("need_stock", True))
-    if need_stock:
-        stocks = _resolve_stocks(ts_codes)
-        stock_scope = (
-            f"stocks={len(stocks)}"
-            if not ts_codes.strip()
-            else f"stocks={','.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}"
-        )
-    else:
-        # 宏观/新闻/日历与个股无关：不解析前端股票参数
-        # 新闻采集内部仍按库内全部股票拉取市场资讯
-        stocks = _list_all_stocks() if task_id == "news" else []
-        stock_scope = "scope=market"
-
-    runners: dict[str, Callable] = {
-        "daily_bar": lambda: run_daily_crawl(stocks, start_date=start, end_date=end),
-        "financial": lambda: run_financial_crawl(stocks, start_date=start, end_date=end),
-        "macro": lambda: run_macro_crawl(start_date=start, end_date=end),
-        "news": lambda: run_news_crawl(stocks, start_date=start, end_date=end),
-        "report": lambda: run_report_crawl(stocks, start_date=start, end_date=end),
-        "calendar": lambda: run_calendar_crawl(start_date=start, end_date=end),
-    }
+    empty_codes = not ts_codes.strip()
+    # 日线留空代码：后台按交易日全市场采集，不在请求线程解析五千多只股票
+    daily_market = task_id == "daily_bar" and empty_codes
 
     # 清理同任务遗留的 running 日志，避免前端看到卡住记录
     _cleanup_stale_running_logs(task_id=task_id)
@@ -210,7 +217,42 @@ def trigger_task(
 
     def _run_in_background():
         try:
-            result = runners[task_id]()
+            if daily_market:
+                stock_scope = "stocks=all(market_by_date)"
+                result = run_daily_crawl(start_date=start, end_date=end, market=True)
+            elif need_stock:
+                # 日线指定代码 / 财务 / 研报：留空则 Tushare 全市场列表
+                stocks = _resolve_stocks(ts_codes, prefer_market=True)
+                stock_scope = (
+                    f"stocks={len(stocks)}(market)"
+                    if empty_codes
+                    else f"stocks={','.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}"
+                )
+                runners: dict[str, Callable] = {
+                    "daily_bar": lambda: run_daily_crawl(stocks, start_date=start, end_date=end),
+                    # 全市场：区间内已有数据的股票跳过；页面指定代码：不跳过，照常采集
+                    "financial": lambda: run_financial_crawl(
+                        stocks,
+                        start_date=start,
+                        end_date=end,
+                        skip_existing_in_range=empty_codes,
+                    ),
+                    "report": lambda: run_report_crawl(stocks, start_date=start, end_date=end),
+                }
+                result = runners[task_id]()
+            elif task_id == "news":
+                stocks = _list_all_stocks(prefer_market=False)
+                stock_scope = "scope=market"
+                result = run_news_crawl(stocks, start_date=start, end_date=end)
+            elif task_id == "macro":
+                stock_scope = "scope=market"
+                result = run_macro_crawl(start_date=start, end_date=end)
+            elif task_id == "calendar":
+                stock_scope = "scope=market"
+                result = run_calendar_crawl(start_date=start, end_date=end)
+            else:
+                raise RuntimeError(f"未实现的任务: {task_id}")
+
             rows_affected = int(result.get("rows", 0))
             msg = f"{result.get('message', 'success')}; {stock_scope}"
             _finish_log(log_id, "success", msg, rows_affected)

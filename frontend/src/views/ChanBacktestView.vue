@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>缠论回测</h2>
-        <p>基于 ChanAnalyzer 的缠论策略回测；三买策略按三类买卖点交易，笔端翻转策略按笔方向买卖</p>
+        <p>基于 ChanAnalyzer 的缠论策略回测；支持三买与多周期缠论策略</p>
       </div>
       <div class="toolbar">
         <el-button :loading="analyzing" @click="runAnalyze">缠论分析</el-button>

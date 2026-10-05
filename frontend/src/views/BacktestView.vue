@@ -426,7 +426,7 @@ async function runBacktest() {
 onMounted(async () => {
   try {
     const listData = await api.strategyList({ page: 1, page_size: 50 })
-    strategies.value = listData?.items || []
+    strategies.value = (listData?.items || []).filter((item) => !item.strategy_key?.startsWith('chan_'))
     if (strategies.value.length) {
       form.strategy_key = strategies.value[0].strategy_key
       await onStrategyChange(form.strategy_key)
