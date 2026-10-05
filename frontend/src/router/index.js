@@ -15,6 +15,18 @@ const routes = [
     meta: { title: '缠论回测', icon: 'TrendCharts' },
   },
   {
+    path: '/factor',
+    name: 'factor',
+    component: () => import('@/views/FactorView.vue'),
+    meta: { title: '因子库', icon: 'DataAnalysis' },
+  },
+  {
+    path: '/multi-factor',
+    name: 'multi-factor',
+    component: () => import('@/views/MultiFactorView.vue'),
+    meta: { title: '多因子打分', icon: 'Grid' },
+  },
+  {
     path: '/crawl',
     name: 'crawl',
     component: () => import('@/views/CrawlView.vue'),

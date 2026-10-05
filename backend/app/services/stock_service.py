@@ -338,3 +338,39 @@ def list_available_stocks(limit: int = 50) -> list[str]:
     )
     # 只返回代码字符串列表，供下拉/筛选等场景使用
     return [r["stock_code"] for r in rows]
+
+
+_stock_name_cache: dict[str, str] | None = None
+
+
+def get_stock_name_map(codes: list[str] | None = None) -> dict[str, str]:
+    """
+    批量获取股票名称（优先 Tushare stock_basic，进程内缓存）。
+
+    Args:
+        codes: 需要查询的代码；None 表示返回全量缓存
+
+    Returns:
+        ``{ts_code: name}``，查不到时为空字符串
+    """
+    global _stock_name_cache
+    if _stock_name_cache is None:
+        name_map: dict[str, str] = {}
+        try:
+            from app.collectors.daily import _get_pro
+
+            pro = _get_pro()
+            df = pro.stock_basic(exchange="", list_status="L", fields="ts_code,name")
+            if df is not None and len(df) > 0:
+                for _, row in df.iterrows():
+                    code = str(row.get("ts_code") or "").strip().upper()
+                    if code:
+                        name_map[code] = str(row.get("name") or "").strip()
+            logger.info(f"loaded stock name map size={len(name_map)}")
+        except Exception as e:
+            logger.warning(f"load stock name map failed: {e}")
+        _stock_name_cache = name_map
+
+    if codes is None:
+        return dict(_stock_name_cache)
+    return {c: _stock_name_cache.get(c, "") for c in codes}
