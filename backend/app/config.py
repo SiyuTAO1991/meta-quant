@@ -41,6 +41,21 @@ class Settings(BaseSettings):
     crawl_test_mode: bool = True
     crawl_stock_list: str = "600519.SH,000001.SZ,600036.SH"
 
+    # DeepSeek LLM
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-flash"
+
+    # 阿里云百炼 Embedding（OpenAI 兼容）
+    dashscope_api_key: str = ""
+    dashscope_base_url: str = ""
+    rag_embed_model: str = "text-embedding-v4"
+    rag_embed_dim: int = 1024
+    rag_data_dir: str = "./data/rag"
+    rag_chunk_size: int = 1000
+    rag_chunk_overlap: int = 200
+    rag_top_k: int = 10
+
     @property
     def db_host(self) -> str:
         return self.wucai_sql_host or self.mysql_host

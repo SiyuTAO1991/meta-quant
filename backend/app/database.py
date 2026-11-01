@@ -63,6 +63,21 @@ def execute_update(sql: str, params: Optional[Iterable[Any]] = None) -> int:
         conn.close()
 
 
+def execute_insert(sql: str, params: Optional[Iterable[Any]] = None) -> int:
+    """执行 INSERT 并返回 lastrowid。"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(sql, params or ())
+            conn.commit()
+            return int(cursor.lastrowid or 0)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def execute_many(sql: str, data_list: list[tuple]) -> int:
     if not data_list:
         return 0

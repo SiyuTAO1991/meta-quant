@@ -1,0 +1,98 @@
+{
+  "categories": [
+    {
+      "key": "price_volume",
+      "name": "价量因子",
+      "desc": "价格和成交量衍生的基础因子",
+      "features": [
+        {"code": "ret_1d", "name": "1日收益率"},
+        {"code": "ret_3d", "name": "3日收益率"},
+        {"code": "ret_5d", "name": "5日收益率"},
+        {"code": "ret_10d", "name": "10日收益率"},
+        {"code": "amplitude_5d", "name": "5日振幅"},
+        {"code": "amplitude_10d", "name": "10日振幅"},
+        {"code": "vol_ratio_5d", "name": "5日量比"},
+        {"code": "vol_ratio_10d", "name": "10日量比"},
+        {"code": "price_volume_corr_10d", "name": "10日量价相关"},
+        {"code": "turnover_change_5d", "name": "5日成交变化"}
+      ]
+    },
+    {
+      "key": "momentum",
+      "name": "动量因子",
+      "desc": "价格趋势持续性与强度",
+      "features": [
+        {"code": "momentum_5d", "name": "5日动量"},
+        {"code": "momentum_10d", "name": "10日动量"},
+        {"code": "momentum_20d", "name": "20日动量"},
+        {"code": "momentum_60d", "name": "60日动量"},
+        {"code": "momentum_slope_10d", "name": "10日动量斜率"},
+        {"code": "momentum_slope_20d", "name": "20日动量斜率"},
+        {"code": "momentum_accel_10d", "name": "10日动量加速度"},
+        {"code": "momentum_accel_20d", "name": "20日动量加速度"}
+      ]
+    },
+    {
+      "key": "volatility",
+      "name": "波动率因子",
+      "desc": "价格波动剧烈程度",
+      "features": [
+        {"code": "atr_norm_14", "name": "14日标准化ATR"},
+        {"code": "hist_vol_10d", "name": "10日历史波动率"},
+        {"code": "hist_vol_20d", "name": "20日历史波动率"},
+        {"code": "hist_vol_60d", "name": "60日历史波动率"},
+        {"code": "vol_change_10d", "name": "10日波动率变化"},
+        {"code": "vol_change_20d", "name": "20日波动率变化"}
+      ]
+    },
+    {
+      "key": "technical",
+      "name": "技术指标因子",
+      "desc": "TA-Lib 经典技术指标",
+      "features": [
+        {"code": "rsi_14", "name": "RSI(14)"},
+        {"code": "rsi_6", "name": "RSI(6)"},
+        {"code": "adx_14", "name": "ADX(14)"},
+        {"code": "macd_hist", "name": "MACD柱"},
+        {"code": "macd_signal", "name": "MACD信号线"},
+        {"code": "macd_dif", "name": "MACD DIF"},
+        {"code": "bbands_position", "name": "布林带位置"},
+        {"code": "kdj_k", "name": "KDJ K"},
+        {"code": "kdj_d", "name": "KDJ D"},
+        {"code": "cci_14", "name": "CCI(14)"},
+        {"code": "willr_14", "name": "威廉指标"},
+        {"code": "obv_slope_10d", "name": "OBV 10日斜率"}
+      ]
+    },
+    {
+      "key": "ma_pattern",
+      "name": "均线与形态因子",
+      "desc": "均线偏离度与K线形态",
+      "features": [
+        {"code": "ma5_bias", "name": "MA5乖离"},
+        {"code": "ma10_bias", "name": "MA10乖离"},
+        {"code": "ma20_bias", "name": "MA20乖离"},
+        {"code": "ma60_bias", "name": "MA60乖离"},
+        {"code": "ma_bull_score", "name": "均线多头得分"},
+        {"code": "upper_shadow_ratio", "name": "上影线比例"},
+        {"code": "lower_shadow_ratio", "name": "下影线比例"},
+        {"code": "body_ratio", "name": "实体比例"},
+        {"code": "new_high_20d", "name": "20日新高"},
+        {"code": "new_low_20d", "name": "20日新低"}
+      ]
+    },
+    {
+      "key": "interaction",
+      "name": "交互因子",
+      "desc": "因子交叉组合",
+      "features": [
+        {"code": "mom_vol_cross", "name": "动量×波动"},
+        {"code": "adx_rsi_cross", "name": "ADX×RSI"},
+        {"code": "vol_ratio_mom_cross", "name": "量比×动量"},
+        {"code": "rsi_bbands_cross", "name": "RSI×布林位置"},
+        {"code": "macd_adx_cross", "name": "MACD×ADX"},
+        {"code": "vol_mom_accel_cross", "name": "波动×动量加速"}
+      ]
+    }
+  ]
+}

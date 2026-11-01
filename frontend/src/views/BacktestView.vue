@@ -187,6 +187,68 @@
       <el-empty v-else description="运行回测后展示净值与回撤曲线" />
     </div>
 
+    <div v-if="qs" class="panel qs-panel">
+      <div class="panel-title">QuantStats评估</div>
+      <p v-if="!qs.ok" class="muted panel-hint">{{ qs.message || 'QuantStats 计算失败' }}</p>
+      <template v-else>
+        <p class="muted panel-hint">
+          基于本次回测净值与标的买入持有对照 · {{ qs.n_days || 0 }} 个交易日
+          <span v-if="qs.has_benchmark"> · 已含买入持有相对指标</span>
+        </p>
+
+        <div class="metrics qs-metrics">
+          <div v-for="item in qsMetricCards" :key="item.key" class="metric-card">
+            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-value" :class="item.cls">{{ item.text }}</div>
+          </div>
+        </div>
+
+        <el-table
+          v-if="qsCompareRows.length"
+          :data="qsCompareRows"
+          size="small"
+          stripe
+          class="qs-compare"
+        >
+          <el-table-column prop="name" label="指标" min-width="120" />
+          <el-table-column prop="engine" label="Backtrader" width="140" />
+          <el-table-column prop="quantstats" label="QuantStats" width="140" />
+        </el-table>
+
+        <div class="qs-charts">
+          <div class="qs-chart-block">
+            <div class="sub-title">累计净值（策略 vs 买入持有）</div>
+            <v-chart v-if="qsNavOption" class="chart-box qs-chart" :option="qsNavOption" autoresize />
+          </div>
+          <div class="qs-chart-block">
+            <div class="sub-title">回撤水下</div>
+            <v-chart v-if="qsDdOption" class="chart-box qs-chart" :option="qsDdOption" autoresize />
+          </div>
+          <div class="qs-chart-block">
+            <div class="sub-title">滚动风险（夏普60日 / 波动20日）</div>
+            <v-chart v-if="qsRollingOption" class="chart-box qs-chart" :option="qsRollingOption" autoresize />
+          </div>
+        </div>
+
+        <div v-if="qs.series?.monthly?.length" class="qs-monthly">
+          <div class="sub-title">月度收益</div>
+          <el-table :data="qs.series.monthly" size="small" stripe max-height="320">
+            <el-table-column prop="year" label="年份" width="80" fixed />
+            <el-table-column v-for="m in 12" :key="m" :label="`${m}月`" min-width="72">
+              <template #default="{ row }">
+                <span :class="pctClass(row[`m${m}`])">{{ fmtPct(row[`m${m}`]) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="全年" min-width="80">
+              <template #default="{ row }">
+                <span :class="pctClass(row.eoy)">{{ fmtPct(row.eoy) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </template>
+    </div>
+
     <div v-if="report?.open_positions?.length" class="panel">
       <div class="panel-title">期末持仓（未平仓）</div>
       <p class="muted panel-hint">以下持仓在回测结束日仍未卖出，其浮动盈亏已计入总收益</p>
@@ -233,7 +295,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -256,6 +318,64 @@ const strategyDesc = ref('')
 const running = ref(false)
 const report = ref(null)
 const curveOption = ref(null)
+const qsNavOption = ref(null)
+const qsDdOption = ref(null)
+const qsRollingOption = ref(null)
+
+const qs = computed(() => report.value?.quantstats || null)
+
+const QS_CARD_DEFS = [
+  { key: 'total_return', label: '总收益率', pct: true },
+  { key: 'cagr', label: '年化(CAGR)', pct: true },
+  { key: 'max_drawdown', label: '最大回撤', pct: true, down: true },
+  { key: 'volatility', label: '年化波动', pct: true },
+  { key: 'sharpe', label: '夏普', pct: false },
+  { key: 'sortino', label: '索提诺', pct: false },
+  { key: 'calmar', label: '卡玛', pct: false },
+  { key: 'omega', label: 'Omega', pct: false },
+  { key: 'win_rate', label: '日胜率', pct: true },
+  { key: 'var_95', label: 'VaR(95%)', pct: true },
+  { key: 'cvar_95', label: 'CVaR(95%)', pct: true },
+  { key: 'profit_factor', label: '利润因子', pct: false },
+  { key: 'alpha', label: 'Alpha', pct: true },
+  { key: 'beta', label: 'Beta', pct: false },
+  { key: 'information_ratio', label: '信息比率', pct: false },
+  { key: 'tracking_error', label: '跟踪误差', pct: true },
+]
+
+const qsMetricCards = computed(() => {
+  const m = qs.value?.metrics || {}
+  return QS_CARD_DEFS.filter((d) => m[d.key] !== undefined && m[d.key] !== null).map((d) => {
+    const v = m[d.key]
+    return {
+      key: d.key,
+      label: d.label,
+      text: d.pct ? fmtPct(v) : fmtNum(v),
+      cls: d.down ? 'down' : pctClass(v),
+    }
+  })
+})
+
+const qsCompareRows = computed(() => {
+  const cmp = qs.value?.compare_with_engine || {}
+  const rows = []
+  const labels = {
+    total_return: '总收益率',
+    sharpe: '夏普比率',
+    max_drawdown: '最大回撤',
+  }
+  for (const [key, label] of Object.entries(labels)) {
+    const item = cmp[key]
+    if (!item) continue
+    const isPct = key !== 'sharpe'
+    rows.push({
+      name: label,
+      engine: isPct ? fmtPct(item.engine) : fmtNum(item.engine),
+      quantstats: isPct ? fmtPct(item.quantstats) : fmtNum(item.quantstats),
+    })
+  }
+  return rows
+})
 
 const form = reactive({
   strategy_key: '',
@@ -378,6 +498,120 @@ function buildCurveOption(data) {
   }
 }
 
+function lineOption(dates, seriesList, yName = '') {
+  return {
+    animation: false,
+    tooltip: { trigger: 'axis' },
+    legend: { data: seriesList.map((s) => s.name) },
+    grid: { left: 56, right: 24, top: 36, bottom: 48 },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { type: 'slider', start: 0, end: 100, bottom: 8 },
+    ],
+    xAxis: { type: 'category', data: dates, boundaryGap: false },
+    yAxis: { type: 'value', scale: true, name: yName },
+    series: seriesList.map((s) => ({
+      name: s.name,
+      type: 'line',
+      data: s.data,
+      showSymbol: false,
+      lineStyle: { width: s.width || 1.5, color: s.color },
+      areaStyle: s.area ? { color: s.area } : undefined,
+    })),
+  }
+}
+
+function buildQuantstatsCharts(qsData) {
+  qsNavOption.value = null
+  qsDdOption.value = null
+  qsRollingOption.value = null
+  if (!qsData?.ok || !qsData?.series) return
+
+  const series = qsData.series
+  const strat = series.strategy_nav || []
+  if (strat.length) {
+    const dates = strat.map((i) => i.date)
+    const stratMap = Object.fromEntries(strat.map((i) => [i.date, i.value]))
+    const hold = series.hold_nav || []
+    const holdMap = Object.fromEntries(hold.map((i) => [i.date, i.value]))
+    const seriesList = [
+      {
+        name: '策略',
+        data: dates.map((d) => stratMap[d] ?? null),
+        color: '#0f766e',
+        width: 2,
+        area: 'rgba(15, 118, 110, 0.1)',
+      },
+    ]
+    if (hold.length) {
+      seriesList.push({
+        name: '买入持有',
+        data: dates.map((d) => holdMap[d] ?? null),
+        color: '#64748b',
+        width: 1.5,
+      })
+    }
+    qsNavOption.value = lineOption(dates, seriesList, '净值')
+  }
+
+  const dd = series.drawdown || []
+  if (dd.length) {
+    qsDdOption.value = lineOption(
+      dd.map((i) => i.date),
+      [
+        {
+          name: '回撤',
+          data: dd.map((i) => Number((i.value * 100).toFixed(4))),
+          color: '#b91c1c',
+          area: 'rgba(185, 28, 28, 0.12)',
+        },
+      ],
+      '回撤%',
+    )
+  }
+
+  const rs = series.rolling_sharpe || []
+  const rv = series.rolling_vol || []
+  if (rs.length || rv.length) {
+    const dateSet = new Set([...rs.map((i) => i.date), ...rv.map((i) => i.date)])
+    const dates = [...dateSet].sort()
+    const rsMap = Object.fromEntries(rs.map((i) => [i.date, i.value]))
+    const rvMap = Object.fromEntries(rv.map((i) => [i.date, i.value]))
+    qsRollingOption.value = {
+      animation: false,
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['滚动夏普', '滚动波动'] },
+      grid: { left: 56, right: 56, top: 36, bottom: 48 },
+      dataZoom: [
+        { type: 'inside', start: 0, end: 100 },
+        { type: 'slider', start: 0, end: 100, bottom: 8 },
+      ],
+      xAxis: { type: 'category', data: dates, boundaryGap: false },
+      yAxis: [
+        { type: 'value', scale: true, name: '夏普' },
+        { type: 'value', scale: true, name: '波动', axisLabel: { formatter: (v) => `${(v * 100).toFixed(0)}%` } },
+      ],
+      series: [
+        {
+          name: '滚动夏普',
+          type: 'line',
+          data: dates.map((d) => rsMap[d] ?? null),
+          showSymbol: false,
+          lineStyle: { width: 1.5, color: '#2563eb' },
+        },
+        {
+          name: '滚动波动',
+          type: 'line',
+          yAxisIndex: 1,
+          data: dates.map((d) => rvMap[d] ?? null),
+          showSymbol: false,
+          lineStyle: { width: 1.5, color: '#c2410c' },
+        },
+      ],
+    }
+  }
+}
+
 function parseStockCodes(text) {
   return (text || '')
     .split(/[,，\s]+/)
@@ -417,6 +651,7 @@ async function runBacktest() {
     const detail = await api.backtestReport({ backtest_id: summary.backtest_id })
     report.value = detail
     buildCurveOption(detail)
+    buildQuantstatsCharts(detail?.quantstats)
     ElMessage.success(`回测完成 #${summary.backtest_id}`)
   } finally {
     running.value = false
@@ -513,5 +748,34 @@ onMounted(async () => {
 
 .down {
   color: var(--mq-down);
+}
+
+.qs-panel .sub-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+
+.qs-metrics {
+  margin-bottom: 12px;
+}
+
+.qs-compare {
+  margin: 8px 0 4px;
+  max-width: 480px;
+}
+
+.qs-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qs-chart {
+  height: 280px;
+}
+
+.qs-monthly {
+  margin-top: 8px;
 }
 </style>

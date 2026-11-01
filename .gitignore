@@ -21,3 +21,4 @@ dist/
 # Local
 *.sqlite3
 outputs/
+backend/data/rag/

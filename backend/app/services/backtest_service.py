@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.backtest.engine import run_backtest
 from app.database import execute_many, execute_query, execute_update
+from app.quantstats import analyze_from_equity
 from app.schemas.common import serialize_row
 from app.services import stock_service, strategy_service
 from app.services.chan_service import CHAN_STRATEGY_KEYS, build_chan_report_extras, calc_chan_min_bars
@@ -205,6 +206,17 @@ def run_backtest_task(
             strategy_key=strategy_key,
         )
 
+        quantstats_data = analyze_from_equity(
+            result.equity_curve,
+            initial_cash=cash,
+            stock_bars=stock_bars,
+            engine_metrics={
+                "total_return": result.total_return,
+                "sharpe": result.sharpe_ratio if result.sharpe_ratio is not None else 0.0,
+                "max_drawdown": result.max_drawdown,
+            },
+        )
+
         report_data = {
             "equity_curve": result.equity_curve,
             "drawdown_curve": result.drawdown_curve,
@@ -219,6 +231,7 @@ def run_backtest_task(
             "realized_pnl": result.realized_pnl,
             "unrealized_pnl": result.unrealized_pnl,
             "open_positions": result.open_positions,
+            "quantstats": quantstats_data,
             **build_chan_report_extras(stock_bars, strategy_key),
         }
 
@@ -413,4 +426,5 @@ def get_backtest_report(backtest_id: int) -> dict:
         "trade_marks": report_data.get("trade_marks") or [],
         "chan_signals": report_data.get("chan_signals") or [],
         "chan_signal_stats": report_data.get("chan_signal_stats") or {},
+        "quantstats": report_data.get("quantstats") or None,
     }

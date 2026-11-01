@@ -205,6 +205,74 @@ class FactorEvaluateRequest(BaseModel):
     keyword: str = Field("", description="因子名/代码搜索")
 
 
+class FeatureEngineeringRequest(BaseModel):
+    stock_codes: str = Field(
+        "",
+        description="逗号分隔；留空则用默认池 600519/688981/000001/300750",
+    )
+    start_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    end_date: str = Field(..., description="YYYY-MM-DD 或 YYYYMMDD")
+    min_bars: int = Field(120, ge=20, le=2000, description="单票最少交易日")
+    include_fundamental: bool = True
+    neutralize_factor: str = Field("momentum_20d", description="中性化演示因子")
+    neutralize_all: bool = Field(False, description="是否对全部特征列做中性化")
+    corr_threshold: float = Field(0.8, ge=0.5, le=0.99)
+    industry_map: dict[str, str] = Field(default_factory=dict, description="可选行业覆盖")
+
+
+class XgboostParams(BaseModel):
+    n_estimators: int = Field(200, ge=10, le=2000)
+    max_depth: int = Field(5, ge=1, le=16)
+    learning_rate: float = Field(0.05, gt=0, le=1)
+    subsample: float = Field(0.8, gt=0, le=1)
+    colsample_bytree: float = Field(0.8, gt=0, le=1)
+    min_child_weight: float = Field(10, ge=0)
+    reg_alpha: float = Field(0.1, ge=0)
+    reg_lambda: float = Field(1.0, ge=0)
+    random_state: int = Field(42, ge=0)
+    eval_metric: str = "logloss"
+    verbosity: int = Field(0, ge=0, le=3)
+    use_label_encoder: bool = False
+
+
+class XgboostPredictRequest(BaseModel):
+    stock_codes: str = Field("600519.SH,688981.SH", description="逗号分隔")
+    start_date: str = Field("2023-01-01")
+    end_date: str = Field("2025-12-31")
+    label_horizon: int = Field(1, ge=1, le=20, description="未来第 N 个交易日涨跌")
+    min_bars: int = Field(120, ge=60, le=2000)
+    train_days: int = Field(120, ge=30, le=1000, description="滚动训练窗口")
+    retrain_interval: int = Field(20, ge=1, le=250, description="重训间隔交易日")
+    feature_cols: list[str] = Field(default_factory=list, description="X 列；空则全部技术因子")
+    xgb_params: XgboostParams = Field(default_factory=XgboostParams)
+
+
+class LightgbmParams(BaseModel):
+    n_estimators: int = Field(200, ge=10, le=2000)
+    max_depth: int = Field(5, ge=1, le=16)
+    learning_rate: float = Field(0.05, gt=0, le=1)
+    num_leaves: int = Field(31, ge=2, le=256)
+    subsample: float = Field(0.8, gt=0, le=1)
+    colsample_bytree: float = Field(0.8, gt=0, le=1)
+    min_child_samples: int = Field(20, ge=1, le=200)
+    reg_alpha: float = Field(0.1, ge=0)
+    reg_lambda: float = Field(1.0, ge=0)
+    random_state: int = Field(42, ge=0)
+    verbose: int = Field(-1, ge=-1, le=2)
+
+
+class LightgbmPredictRequest(BaseModel):
+    stock_codes: str = Field("600519.SH,688981.SH", description="逗号分隔")
+    start_date: str = Field("2023-01-01")
+    end_date: str = Field("2025-12-31")
+    label_horizon: int = Field(1, ge=1, le=20, description="未来第 N 个交易日涨跌")
+    min_bars: int = Field(120, ge=60, le=2000)
+    train_days: int = Field(120, ge=30, le=1000, description="滚动训练窗口")
+    retrain_interval: int = Field(20, ge=1, le=250, description="重训间隔交易日")
+    feature_cols: list[str] = Field(default_factory=list, description="X 列；空则全部技术因子")
+    lgb_params: LightgbmParams = Field(default_factory=LightgbmParams)
+
+
 class FactorResultListRequest(BaseModel):
     page: int = Field(1, ge=1)
     size: int = Field(10, ge=1, le=100, description="每页因子结果行数，默认10")
@@ -233,6 +301,22 @@ class MultiFactorBacktestRequest(BaseModel):
         default_factory=list,
         description="因子权重配置；空则用默认8因子",
     )
+
+
+class RagDocListRequest(BaseModel):
+    stock_code: str = Field("", description="可选，按股票筛选")
+    page: int = Field(1, ge=1)
+    size: int = Field(20, ge=1, le=100)
+
+
+class RagDocDetailRequest(BaseModel):
+    doc_id: int = Field(..., ge=1)
+
+
+class RagAskRequest(BaseModel):
+    doc_id: int = Field(..., ge=1)
+    question: str = Field(..., min_length=1, max_length=2000)
+    top_k: int | None = Field(None, ge=1, le=20)
 
 
 def serialize_row(row: dict) -> dict:

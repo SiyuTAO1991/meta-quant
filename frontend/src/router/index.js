@@ -27,6 +27,20 @@ const routes = [
     meta: { title: '多因子打分', icon: 'Grid' },
   },
   {
+    path: '/gbdt',
+    name: 'gbdt',
+    component: () => import('@/views/GbdtView.vue'),
+    meta: { title: 'GBDT预测', icon: 'Cpu' },
+  },
+  { path: '/xgboost', redirect: '/gbdt' },
+  { path: '/lightgbm', redirect: '/gbdt' },
+  {
+    path: '/rag',
+    name: 'rag',
+    component: () => import('@/views/RagView.vue'),
+    meta: { title: '财报问答', icon: 'ChatDotRound' },
+  },
+  {
     path: '/crawl',
     name: 'crawl',
     component: () => import('@/views/CrawlView.vue'),

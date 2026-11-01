@@ -8,12 +8,16 @@ from app.api.routes import (
     chan,
     crawl,
     factor,
+    feature_engineering,
     finance,
+    lightgbm_api,
     macro,
     multi_factor,
     news,
+    rag_api,
     report,
     stock,
+    xgboost_api,
 )
 
 api_router = APIRouter()
@@ -31,7 +35,11 @@ for module in (
     backtest,
     chan,
     factor,
+    feature_engineering,
     multi_factor,
+    xgboost_api,
+    lightgbm_api,
+    rag_api,
 ):
     for route in module.router.routes:
         api_router.routes.append(route)

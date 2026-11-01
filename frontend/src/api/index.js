@@ -69,6 +69,21 @@ export const api = {
   multiFactorMeta: () => http.post('/quant/multi-factor/meta', {}),
   multiFactorBacktest: (body) => http.post('/quant/multi-factor/backtest', body, { timeout: 600000 }),
 
+  xgboostMeta: () => http.post('/quant/xgboost/meta', {}),
+  xgboostPredict: (body) => http.post('/quant/xgboost/predict', body, { timeout: 600000 }),
+  lightgbmMeta: () => http.post('/quant/lightgbm/meta', {}),
+  lightgbmPredict: (body) => http.post('/quant/lightgbm/predict', body, { timeout: 600000 }),
+
+  ragMeta: () => http.post('/quant/rag/meta', {}),
+  ragDocList: (body) => http.post('/quant/rag/docs/list', body || {}),
+  ragDocDetail: (body) => http.post('/quant/rag/docs/detail', body),
+  ragDocDelete: (body) => http.post('/quant/rag/docs/delete', body),
+  ragUpload: (formData) =>
+    http.post('/quant/rag/docs/upload', formData, {
+      timeout: 600000,
+    }),
+  ragAsk: (body) => http.post('/quant/rag/ask', body, { timeout: 180000 }),
+
   health: () => http.get('/health'),
 }
 
